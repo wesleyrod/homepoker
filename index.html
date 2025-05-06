@@ -131,6 +131,9 @@
 		</div>
 	</div>
 
+	<!-- Adicione este elemento de áudio no corpo do HTML -->
+	<audio id="levelChangeSound" src="level-up-sound.mp3"></audio>
+
 	<script>
 		// Game state
 		const gameState = {
@@ -242,6 +245,19 @@
 			});
 			
 			pauseTimerBtn.addEventListener('click', toggleTimer);
+
+			// Progress bar click event
+			progressBar.parentElement.addEventListener('click', (event) => {
+				const progressBarContainer = progressBar.parentElement;
+				const rect = progressBarContainer.getBoundingClientRect();
+				const clickX = event.clientX - rect.left;
+				const newPercentage = clickX / rect.width;
+				
+				const levelDuration = gameState.levels[gameState.currentLevel].duration * 60; // Duração em segundos
+				gameState.timeRemaining = Math.floor(levelDuration * newPercentage);
+				
+				updateTimerDisplay();
+			});
 			
 			// Configuration controls
 			addLevelBtn.addEventListener('click', addLevel);
@@ -249,47 +265,32 @@
 			saveConfigBtn.addEventListener('click', saveConfig);
 		}
 
-		// Set the current level and start its timer
 		function setLevel(levelIndex) {
 			// Clear any existing timer
 			if (gameState.timerInterval) {
 				clearInterval(gameState.timerInterval);
 			}
-			
+
 			// Update current level
 			gameState.currentLevel = levelIndex;
 			const level = gameState.levels[levelIndex];
-			
+
 			// Update display
 			currentLevelEl.textContent = level.level;
 			smallBlindEl.textContent = level.smallBlind;
 			bigBlindEl.textContent = level.bigBlind;
-			
+
 			// Set timer
 			gameState.timeRemaining = level.duration * 60; // Convert to seconds
 			updateTimerDisplay();
-			
+
 			// Update progress bar
 			progressBar.style.width = '100%';
-			
-			// Update next level info if available
-			if (levelIndex < gameState.levels.length - 1) {
-				const nextLevel = gameState.levels[levelIndex + 1];
-				// nextLevelNumEl.textContent = nextLevel.level;
-				// nextSmallBlindEl.textContent = nextLevel.smallBlind;
-				// nextBigBlindEl.textContent = nextLevel.bigBlind;
-				// nextAnteEl.textContent = nextLevel.ante;
-			} else {
-				// nextLevelNumEl.textContent = '--';
-				// nextSmallBlindEl.textContent = '--';
-				// nextBigBlindEl.textContent = '--';
-				// nextAnteEl.textContent = '--';
-			}
-			
+
 			// Disable/enable navigation buttons
 			prevLevelBtn.disabled = levelIndex === 0;
 			nextLevelBtn.disabled = levelIndex === gameState.levels.length - 1;
-			
+
 			// Start timer if not paused
 			if (!gameState.isPaused) {
 				startTimer();
@@ -301,13 +302,18 @@
 			gameState.timerInterval = setInterval(() => {
 				gameState.timeRemaining--;
 				updateTimerDisplay();
-				
+
 				if (gameState.timeRemaining <= 0) {
 					clearInterval(gameState.timerInterval);
+
+					// Tocar o som de alerta ao final do nível
+					const levelChangeSound = document.getElementById('levelChangeSound');
+					levelChangeSound.play();
+
 					if (gameState.currentLevel < gameState.levels.length - 1) {
 						setLevel(gameState.currentLevel + 1);
 					} else {
-						// Tournament ended
+						// Torneio finalizado
 						countdownEl.textContent = 'TOURNAMENT ENDED';
 					}
 				}
@@ -477,27 +483,20 @@
 		// Save configuration
 		function saveConfig() {
 			gameState.defaultDuration = parseInt(defaultDurationEl.value) || 15;
-			
+
 			const config = {
 				levels: gameState.levels,
 				defaultDuration: gameState.defaultDuration,
-				startingChips: parseInt(startingChipsEl.value) || 5000,
-				blindStyle: blindStyleEl.value
+				startingChips: parseInt(startingChipsEl?.value) || 5000,
+				blindStyle: blindStyleEl?.value
 			};
-			
+
 			localStorage.setItem('pokerConfig', JSON.stringify(config));
-			
-			// Show success message
-			const originalText = saveConfigBtn.innerHTML;
-			saveConfigBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
-			saveConfigBtn.classList.replace('bg-blue-500', 'bg-gray-500');
-			
-			setTimeout(() => {
-				saveConfigBtn.innerHTML = originalText;
-				saveConfigBtn.classList.replace('bg-gray-500', 'bg-blue-500');
-			}, 2000);
-			
-			// Update display if needed
+
+			// Exibir alerta informando que as configurações foram salvas
+			alert('Configurações salvas com sucesso!');
+
+			// Atualizar exibição se necessário
 			setLevel(gameState.currentLevel);
 		}
 
