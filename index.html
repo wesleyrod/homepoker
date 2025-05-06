@@ -1,0 +1,508 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+	<meta charset="UTF-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0">
+	<title>Poker de Jah - Home Game</title>
+	<script src="https://cdn.tailwindcss.com"></script>
+	<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+	<style>
+		.page {
+			display: none;
+			opacity: 0;
+			transition: opacity 0.3s ease;
+		}
+		.page.active {
+			display: block;
+			opacity: 1;
+		}
+		.progress-bar {
+			height: 8px;
+			transition: width 1s linear;
+		}
+		.chip {
+			width: 40px;
+			height: 40px;
+			border-radius: 50%;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			font-weight: bold;
+			color: white;
+			box-shadow: 0 2px 5px rgba(0,0,0,0.2);
+		}
+		.blinds-input {
+			width: 80px;
+			text-align: center;
+		}
+		.time-input {
+			width: 60px;
+			text-align: center;
+		}
+	</style>
+</head>
+<body class="bg-gray-100 text-gray-800 min-h-screen">
+	<div class="container mx-auto px-4 py-8 max-w-xl">
+		<!-- Header -->
+		<header class="mb-4 text-center">
+			<h1 class="text-3xl font-bold text-red-600">Poker de Jah</h1>
+			<div class="text-center text-sm font-semibold text-gray-500">Home Game - Contador de níveis / blinds</div>
+		</header>
+
+		<!-- Display Page -->
+		<div id="displayPage" class="page active">
+			<div class="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-200">
+				<div class="flex justify-between items-center mb-4 border-b border-gray-300 pb-4">
+					<h2 class="text-xl font-semibold text-red-600">Nível atual: </h2>
+					<div class="text-4xl font-bold" id="currentLevel">1</div>
+				</div>
+				
+				<div class="mb-12 mt-12">
+					<div class="flex justify-center items-center space-x-4 mb-2">
+						<div class="chip bg-red-600 p-9 text-xl" id="smallBlind">25</div>
+						<div class="text-xl">/</div>
+						<div class="chip bg-red-800 p-11 text-xl" id="bigBlind">50</div>
+					</div>
+					<div class="text-center text-sm font-semibold text-gray-500">Blind</div>
+				</div>
+				
+				<div class="mb-6">
+					<div class="text-center text-8xl font-mono font-bold mb-2" id="countdown">15:00</div>
+					<div class="text-center text-sm text-gray-500">Tempo Restante</div>
+				</div>
+				
+				<div class="bg-gray-200 rounded-full h-2 mb-6">
+					<div id="progressBar" class="progress-bar bg-red-500 rounded-full h-2" style="width: 100%"></div>
+				</div>
+				
+				<div class="flex justify-center space-x-4">
+					<button id="prevLevel" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800">
+						<i class="fas fa-arrow-left"></i> Anterior
+					</button>
+					<button id="nextLevel" class="px-4 py-2 bg-gray-200 hover:bg-gray-300 rounded-lg text-gray-800">
+						Próximo <i class="fas fa-arrow-right"></i>
+					</button>
+					<button id="pauseTimer" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-white">
+						<i class="fas fa-pause"></i>
+					</button>
+				</div>
+			</div>
+			
+		</div>
+
+		<!-- Configuration Page -->
+		<div id="configPage" class="page">
+			<div class="bg-white rounded-xl p-6 shadow-lg mb-6 border border-gray-200">
+				<h2 class="text-xl font-semibold mb-4 text-red-600">Configuração de níveis</h2>
+				
+				<div class="mb-4">
+					<label class="block text-sm font-medium mb-1">Duração de cada nível (minutos)</label>
+					<input type="number" id="defaultDuration" value="15" min="1" class="time-input bg-gray-100 border border-gray-300 rounded px-3 py-2">
+				</div>
+				
+				<div class="mb-6">
+					<label class="block text-sm font-medium mb-1">Estrutura de blind/nível</label>
+					<div id="levelsContainer">
+					</div>
+				</div>
+				
+				<div class="flex justify-between">
+					<button id="addLevel" class="px-4 py-2 bg-gray-500 hover:bg-gray-600 rounded-lg text-white">
+						<i class="fas fa-plus"></i> Add Nível
+					</button>
+					<button id="resetLevels" class="px-4 py-2 bg-red-500 hover:bg-red-600 rounded-lg text-white">
+						<i class="fas fa-trash"></i> Reset
+					</button>
+				</div>
+			</div>
+			
+			<div class="bg-white rounded-xl p-6 shadow-lg border border-gray-200">
+				
+				<div class="flex justify-center">
+					<button id="saveConfig" class="px-6 py-2 bg-blue-500 hover:bg-blue-600 rounded-lg font-medium text-white">
+						<i class="fas fa-save"></i> Salvar Configuração
+					</button>
+				</div>
+			</div>
+		</div>
+		<div class="flex justify-center space-x-4 mt-4">
+		  <button id="displayBtn" class="px-4 py-1 bg-gray-100 hover:bg-gray-300 rounded-lg font-medium text-gray-400">Display</button>
+		  <button id="configBtn" class="px-4 py-1 bg-gray-100 hover:bg-gray-300 rounded-lg font-medium text-gray-400">Configuração</button>
+		</div>
+	</div>
+
+	<script>
+		// Game state
+		const gameState = {
+			currentLevel: 0,
+			isPaused: false,
+			timeRemaining: 0,
+			timerInterval: null,
+			levels: [
+					{ level: 1, smallBlind: 100, bigBlind: 100, ante: 0, duration: 15 },
+					{ level: 2, smallBlind: 100, bigBlind: 200, ante: 0, duration: 15 },
+					{ level: 3, smallBlind: 100, bigBlind: 300, ante: 0, duration: 15 },
+					{ level: 4, smallBlind: 200, bigBlind: 300, ante: 0, duration: 15 },
+					{ level: 5, smallBlind: 200, bigBlind: 400, ante: 0, duration: 15 },
+					{ level: 6, smallBlind: 300, bigBlind: 600, ante: 0, duration: 15 },
+					{ level: 7, smallBlind: 400, bigBlind: 800, ante: 0, duration: 15 },
+					{ level: 8, smallBlind: 500, bigBlind: 1000, ante: 0, duration: 15 },
+					{ level: 9, smallBlind: 600, bigBlind: 1200, ante: 0, duration: 15 },
+					{ level: 10, smallBlind: 700, bigBlind: 1400, ante: 0, duration: 15 },
+					{ level: 11, smallBlind: 800, bigBlind: 1600, ante: 0, duration: 15 },
+					{ level: 12, smallBlind: 1000, bigBlind: 2000, ante: 0, duration: 15 },
+					{ level: 13, smallBlind: 1200, bigBlind: 2400, ante: 0, duration: 15 },
+					{ level: 14, smallBlind: 1500, bigBlind: 3000, ante: 0, duration: 15 },
+					{ level: 15, smallBlind: 2000, bigBlind: 4000, ante: 0, duration: 15 },
+					{ level: 16, smallBlind: 3000, bigBlind: 6000, ante: 0, duration: 15 },
+					{ level: 17, smallBlind: 3500, bigBlind: 7000, ante: 0, duration: 15 },
+					{ level: 18, smallBlind: 4000, bigBlind: 8000, ante: 0, duration: 15 },
+					{ level: 19, smallBlind: 4500, bigBlind: 9000, ante: 0, duration: 15 },
+					{ level: 20, smallBlind: 5000, bigBlind: 10000, ante: 0, duration: 15 },
+					{ level: 21, smallBlind: 6000, bigBlind: 12000, ante: 0, duration: 15 },
+					{ level: 22, smallBlind: 7000, bigBlind: 14000, ante: 0, duration: 15 },
+					{ level: 23, smallBlind: 8000, bigBlind: 16000, ante: 0, duration: 15 },
+					{ level: 24, smallBlind: 9000, bigBlind: 18000, ante: 0, duration: 15 },
+					{ level: 25, smallBlind: 10000, bigBlind: 20000, ante: 0, duration: 15 }
+			],
+			defaultDuration: 15
+		};
+
+		// DOM elements
+		const displayPage = document.getElementById('displayPage');
+		const configPage = document.getElementById('configPage');
+		const displayBtn = document.getElementById('displayBtn');
+		const configBtn = document.getElementById('configBtn');
+		const currentLevelEl = document.getElementById('currentLevel');
+		const smallBlindEl = document.getElementById('smallBlind');
+		const bigBlindEl = document.getElementById('bigBlind');
+		const countdownEl = document.getElementById('countdown');
+		const progressBar = document.getElementById('progressBar');
+		const prevLevelBtn = document.getElementById('prevLevel');
+		const nextLevelBtn = document.getElementById('nextLevel');
+		const pauseTimerBtn = document.getElementById('pauseTimer');
+		const nextBigBlindEl = document.getElementById('nextBigBlind');
+		const levelsContainer = document.getElementById('levelsContainer');
+		const addLevelBtn = document.getElementById('addLevel');
+		const resetLevelsBtn = document.getElementById('resetLevels');
+		const defaultDurationEl = document.getElementById('defaultDuration');
+		const startingChipsEl = document.getElementById('startingChips');
+		const blindStyleEl = document.getElementById('blindStyle');
+		const saveConfigBtn = document.getElementById('saveConfig');
+
+		// Initialize the app
+		function init() {
+			// Load saved configuration if available
+			const savedConfig = localStorage.getItem('pokerConfig');
+			if (savedConfig) {
+				const config = JSON.parse(savedConfig);
+				gameState.levels = config.levels;
+				gameState.defaultDuration = config.defaultDuration;
+				defaultDurationEl.value = config.defaultDuration;
+			}
+
+			// Render initial levels in config
+			renderLevelsConfig();
+			
+			// Start with level 0
+			setLevel(0);
+			
+			// Setup event listeners
+			setupEventListeners();
+		}
+
+		// Set up all event listeners
+		function setupEventListeners() {
+			// Navigation buttons
+			displayBtn.addEventListener('click', () => {
+				displayPage.classList.add('active');
+				configPage.classList.remove('active');
+				displayBtn.classList.replace('bg-gray-200', 'bg-gray-300');
+				configBtn.classList.replace('bg-gray-300', 'bg-gray-200');
+			});
+			
+			configBtn.addEventListener('click', () => {
+				configPage.classList.add('active');
+				displayPage.classList.remove('active');
+				configBtn.classList.replace('bg-gray-200', 'bg-gray-300');
+				displayBtn.classList.replace('bg-gray-300', 'bg-gray-200');
+			});
+			
+			// Timer controls
+			prevLevelBtn.addEventListener('click', () => {
+				if (gameState.currentLevel > 0) {
+					setLevel(gameState.currentLevel - 1);
+				}
+			});
+			
+			nextLevelBtn.addEventListener('click', () => {
+				if (gameState.currentLevel < gameState.levels.length - 1) {
+					setLevel(gameState.currentLevel + 1);
+				}
+			});
+			
+			pauseTimerBtn.addEventListener('click', toggleTimer);
+			
+			// Configuration controls
+			addLevelBtn.addEventListener('click', addLevel);
+			resetLevelsBtn.addEventListener('click', resetLevels);
+			saveConfigBtn.addEventListener('click', saveConfig);
+		}
+
+		// Set the current level and start its timer
+		function setLevel(levelIndex) {
+			// Clear any existing timer
+			if (gameState.timerInterval) {
+				clearInterval(gameState.timerInterval);
+			}
+			
+			// Update current level
+			gameState.currentLevel = levelIndex;
+			const level = gameState.levels[levelIndex];
+			
+			// Update display
+			currentLevelEl.textContent = level.level;
+			smallBlindEl.textContent = level.smallBlind;
+			bigBlindEl.textContent = level.bigBlind;
+			
+			// Set timer
+			gameState.timeRemaining = level.duration * 60; // Convert to seconds
+			updateTimerDisplay();
+			
+			// Update progress bar
+			progressBar.style.width = '100%';
+			
+			// Update next level info if available
+			if (levelIndex < gameState.levels.length - 1) {
+				const nextLevel = gameState.levels[levelIndex + 1];
+				// nextLevelNumEl.textContent = nextLevel.level;
+				// nextSmallBlindEl.textContent = nextLevel.smallBlind;
+				// nextBigBlindEl.textContent = nextLevel.bigBlind;
+				// nextAnteEl.textContent = nextLevel.ante;
+			} else {
+				// nextLevelNumEl.textContent = '--';
+				// nextSmallBlindEl.textContent = '--';
+				// nextBigBlindEl.textContent = '--';
+				// nextAnteEl.textContent = '--';
+			}
+			
+			// Disable/enable navigation buttons
+			prevLevelBtn.disabled = levelIndex === 0;
+			nextLevelBtn.disabled = levelIndex === gameState.levels.length - 1;
+			
+			// Start timer if not paused
+			if (!gameState.isPaused) {
+				startTimer();
+			}
+		}
+
+		// Start the countdown timer
+		function startTimer() {
+			gameState.timerInterval = setInterval(() => {
+				gameState.timeRemaining--;
+				updateTimerDisplay();
+				
+				if (gameState.timeRemaining <= 0) {
+					clearInterval(gameState.timerInterval);
+					if (gameState.currentLevel < gameState.levels.length - 1) {
+						setLevel(gameState.currentLevel + 1);
+					} else {
+						// Tournament ended
+						countdownEl.textContent = 'TOURNAMENT ENDED';
+					}
+				}
+			}, 1000);
+		}
+
+		// Update the timer display
+		function updateTimerDisplay() {
+			const minutes = Math.floor(gameState.timeRemaining / 60);
+			const seconds = gameState.timeRemaining % 60;
+			countdownEl.textContent = `${minutes.toString().padStart(2, '0')}:${seconds.toString().padStart(2, '0')}`;
+			
+			// Update progress bar
+			const levelDuration = gameState.levels[gameState.currentLevel].duration * 60;
+			const percentage = (gameState.timeRemaining / levelDuration) * 100;
+			progressBar.style.width = `${percentage}%`;
+		}
+
+		// Toggle timer pause/play
+		function toggleTimer() {
+			gameState.isPaused = !gameState.isPaused;
+			
+			if (gameState.isPaused) {
+				clearInterval(gameState.timerInterval);
+				pauseTimerBtn.innerHTML = '<i class="fas fa-play"></i>';
+				pauseTimerBtn.classList.replace('bg-red-500', 'bg-gray-500');
+			} else {
+				startTimer();
+				pauseTimerBtn.innerHTML = '<i class="fas fa-pause"></i>';
+				pauseTimerBtn.classList.replace('bg-gray-500', 'bg-red-500');
+			}
+		}
+
+		// Render levels in configuration
+		function renderLevelsConfig() {
+			levelsContainer.innerHTML = '';
+			
+			gameState.levels.forEach((level, index) => {
+				const levelEl = document.createElement('div');
+				levelEl.className = 'bg-gray-100 rounded-lg p-3 mb-2 border border-gray-200';
+				levelEl.innerHTML = `
+					<div class="flex items-center justify-between mb-2">
+						<div class="font-medium">Level ${level.level}</div>
+						<button class="delete-level text-red-500 hover:text-red-700" data-index="${index}">
+							<i class="fas fa-times"></i>
+						</button>
+					</div>
+					<div class="grid grid-cols-3 gap-2">
+						<div>
+							<label class="block text-xs text-gray-500 mb-1">Small Blind</label>
+							<input type="number" class="blinds-input bg-white border border-gray-300 rounded px-2 py-1" value="${level.smallBlind}" min="1" data-field="smallBlind" data-index="${index}">
+						</div>
+						<div>
+							<label class="block text-xs text-gray-500 mb-1">Big Blind</label>
+							<input type="number" class="blinds-input bg-white border border-gray-300 rounded px-2 py-1" value="${level.bigBlind}" min="1" data-field="bigBlind" data-index="${index}">
+						</div>
+						<div>
+							<label class="block text-xs text-gray-500 mb-1">Ante</label>
+							<input type="number" class="blinds-input bg-white border border-gray-300 rounded px-2 py-1" value="${level.ante}" min="0" data-field="ante" data-index="${index}">
+						</div>
+					</div>
+					<div class="mt-2">
+						<label class="block text-xs text-gray-500 mb-1">Duration (min)</label>
+						<input type="number" class="time-input bg-white border border-gray-300 rounded px-2 py-1" value="${level.duration}" min="1" data-field="duration" data-index="${index}">
+					</div>
+				`;
+				levelsContainer.appendChild(levelEl);
+			});
+			
+			// Add event listeners to delete buttons and inputs
+			document.querySelectorAll('.delete-level').forEach(btn => {
+				btn.addEventListener('click', function() {
+					const index = parseInt(this.getAttribute('data-index'));
+					deleteLevel(index);
+				});
+			});
+			
+			document.querySelectorAll('.blinds-input, .time-input').forEach(input => {
+				input.addEventListener('change', function() {
+					const index = parseInt(this.getAttribute('data-index'));
+					const field = this.getAttribute('data-field');
+					const value = parseInt(this.value) || 0;
+					
+					if (field === 'bigBlind' && value < gameState.levels[index].smallBlind) {
+						this.value = gameState.levels[index].smallBlind * 2;
+						gameState.levels[index][field] = gameState.levels[index].smallBlind * 2;
+					} else {
+						gameState.levels[index][field] = value;
+					}
+					
+					// Ensure big blind is at least double small blind
+					if (field === 'smallBlind') {
+						const bigBlindInput = document.querySelector(`input[data-index="${index}"][data-field="bigBlind"]`);
+						if (parseInt(bigBlindInput.value) < value * 2) {
+							bigBlindInput.value = value * 2;
+							gameState.levels[index].bigBlind = value * 2;
+						}
+					}
+				});
+			});
+		}
+
+		// Add a new level
+		function addLevel() {
+			const lastLevel = gameState.levels[gameState.levels.length - 1];
+			const newLevel = {
+				level: lastLevel.level + 1,
+				smallBlind: lastLevel.smallBlind * 2,
+				bigBlind: lastLevel.bigBlind * 2,
+				ante: lastLevel.ante > 0 ? lastLevel.ante * 2 : 0,
+				duration: gameState.defaultDuration
+			};
+			gameState.levels.push(newLevel);
+			renderLevelsConfig();
+		}
+
+		// Delete a level
+		function deleteLevel(index) {
+			if (gameState.levels.length > 1) {
+				gameState.levels.splice(index, 1);
+				renderLevelsConfig();
+				
+				// Update current level if needed
+				if (gameState.currentLevel >= gameState.levels.length) {
+					setLevel(gameState.levels.length - 1);
+				}
+			}
+		}
+
+		// Reset levels to default
+		function resetLevels() {
+			if (confirm('Tem certeza que quer resetar para os níveis padrão?')) {
+				gameState.levels = [
+					{ level: 1, smallBlind: 100, bigBlind: 100, ante: 0, duration: 15 },
+					{ level: 2, smallBlind: 100, bigBlind: 200, ante: 0, duration: 15 },
+					{ level: 3, smallBlind: 100, bigBlind: 300, ante: 0, duration: 15 },
+					{ level: 4, smallBlind: 200, bigBlind: 300, ante: 0, duration: 15 },
+					{ level: 5, smallBlind: 200, bigBlind: 400, ante: 0, duration: 15 },
+					{ level: 6, smallBlind: 300, bigBlind: 600, ante: 0, duration: 15 },
+					{ level: 7, smallBlind: 400, bigBlind: 800, ante: 0, duration: 15 },
+					{ level: 8, smallBlind: 500, bigBlind: 1000, ante: 0, duration: 15 },
+					{ level: 9, smallBlind: 600, bigBlind: 1200, ante: 0, duration: 15 },
+					{ level: 10, smallBlind: 700, bigBlind: 1400, ante: 0, duration: 15 },
+					{ level: 11, smallBlind: 800, bigBlind: 1600, ante: 0, duration: 15 },
+					{ level: 12, smallBlind: 1000, bigBlind: 2000, ante: 0, duration: 15 },
+					{ level: 13, smallBlind: 1200, bigBlind: 2400, ante: 0, duration: 15 },
+					{ level: 14, smallBlind: 1500, bigBlind: 3000, ante: 0, duration: 15 },
+					{ level: 15, smallBlind: 2000, bigBlind: 4000, ante: 0, duration: 15 },
+					{ level: 16, smallBlind: 3000, bigBlind: 6000, ante: 0, duration: 15 },
+					{ level: 17, smallBlind: 3500, bigBlind: 7000, ante: 0, duration: 15 },
+					{ level: 18, smallBlind: 4000, bigBlind: 8000, ante: 0, duration: 15 },
+					{ level: 19, smallBlind: 4500, bigBlind: 9000, ante: 0, duration: 15 },
+					{ level: 20, smallBlind: 5000, bigBlind: 10000, ante: 0, duration: 15 },
+					{ level: 21, smallBlind: 6000, bigBlind: 12000, ante: 0, duration: 15 },
+					{ level: 22, smallBlind: 7000, bigBlind: 14000, ante: 0, duration: 15 },
+					{ level: 23, smallBlind: 8000, bigBlind: 16000, ante: 0, duration: 15 },
+					{ level: 24, smallBlind: 9000, bigBlind: 18000, ante: 0, duration: 15 },
+					{ level: 25, smallBlind: 10000, bigBlind: 20000, ante: 0, duration: 15 }                  
+				];
+				gameState.defaultDuration = 15;
+				defaultDurationEl.value = 15;
+				renderLevelsConfig();
+				setLevel(0);
+			}
+		}
+
+		// Save configuration
+		function saveConfig() {
+			gameState.defaultDuration = parseInt(defaultDurationEl.value) || 15;
+			
+			const config = {
+				levels: gameState.levels,
+				defaultDuration: gameState.defaultDuration,
+				startingChips: parseInt(startingChipsEl.value) || 5000,
+				blindStyle: blindStyleEl.value
+			};
+			
+			localStorage.setItem('pokerConfig', JSON.stringify(config));
+			
+			// Show success message
+			const originalText = saveConfigBtn.innerHTML;
+			saveConfigBtn.innerHTML = '<i class="fas fa-check"></i> Saved!';
+			saveConfigBtn.classList.replace('bg-blue-500', 'bg-gray-500');
+			
+			setTimeout(() => {
+				saveConfigBtn.innerHTML = originalText;
+				saveConfigBtn.classList.replace('bg-gray-500', 'bg-blue-500');
+			}, 2000);
+			
+			// Update display if needed
+			setLevel(gameState.currentLevel);
+		}
+
+		// Initialize the app when DOM is loaded
+		document.addEventListener('DOMContentLoaded', init);
+	</script>
+</body>
+</html>
