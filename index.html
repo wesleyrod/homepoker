@@ -251,7 +251,7 @@
 				const progressBarContainer = progressBar.parentElement;
 				const rect = progressBarContainer.getBoundingClientRect();
 				const clickX = event.clientX - rect.left;
-				const newPercentage = clickX / rect.width;
+				const newPercentage = 1 - (clickX / rect.width);
 				
 				const levelDuration = gameState.defaultDuration * 60; // Duração em segundos
 				gameState.timeRemaining = Math.floor(levelDuration * newPercentage);
