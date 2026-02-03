@@ -484,7 +484,9 @@
 
 		// Save configuration
 		function saveConfig() {
-			gameState.defaultDuration = parseInt(defaultDurationEl.value) || 15;
+			const oldDuration = gameState.defaultDuration;
+			const newDuration = parseInt(defaultDurationEl.value) || 15;
+			gameState.defaultDuration = newDuration;
 
 			const config = {
 				levels: gameState.levels,
@@ -498,8 +500,15 @@
 			// Exibir alerta informando que as configurações foram salvas
 			alert('Configurações salvas com sucesso!');
 
-			// Atualizar exibição se necessário
-			setLevel(gameState.currentLevel);
+			// Verificar se o nível atual foi alterado
+			const currentLevelObj = gameState.levels[gameState.currentLevel];
+			const displayedSmall = parseInt(smallBlindEl.textContent);
+			const displayedBig = parseInt(bigBlindEl.textContent);
+			
+			// Atualizar exibição/resetar tempo apenas se o nível atual ou a duração global mudaram
+			if (oldDuration !== newDuration || currentLevelObj.smallBlind !== displayedSmall || currentLevelObj.bigBlind !== displayedBig) {
+				setLevel(gameState.currentLevel);
+			}
 		}
 
 		// Initialize the app when DOM is loaded
